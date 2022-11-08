@@ -3,8 +3,8 @@ from enum import Enum
 from PyQt5.QtCore import QCoreApplication, pyqtSignal
 
 from rare.shared import LegendaryCoreSingleton
-from .overlay_settings import OverlaySettings, CustomOption, ActivationStates
 from rare.utils import config_helper
+from .overlay_settings import OverlaySettings, CustomOption, ActivationStates
 
 position_values = ["default", "top-left", "top-right", "middle-left", "middle-right", "bottom-left",
                    "bottom-right", "top-center"]

@@ -7,8 +7,8 @@ from logging import getLogger
 from PyQt5.QtCore import QSettings, QStandardPaths, Qt
 from PyQt5.QtWidgets import QWidget, QMessageBox
 
-from rare.shared import LegendaryCoreSingleton
 from rare.components.tabs.settings.widgets.rpc import RPCSettings
+from rare.shared import LegendaryCoreSingleton
 from rare.ui.components.tabs.settings.rare import Ui_RareSettings
 from rare.utils.paths import cache_dir
 from rare.utils.misc import (

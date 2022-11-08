@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>720</width>
-    <height>561</height>
+    <width>657</width>
+    <height>200</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -22,7 +22,7 @@
   <property name="title">
    <string>Environment variables</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0">
    <item>
     <widget class="QTableWidget" name="env_vars_table">
      <property name="sizePolicy">
@@ -31,11 +31,19 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="font">
+      <font>
+       <family>Monospace</family>
+      </font>
+     </property>
      <property name="verticalScrollBarPolicy">
       <enum>Qt::ScrollBarAsNeeded</enum>
      </property>
      <property name="sizeAdjustPolicy">
       <enum>QAbstractScrollArea::AdjustToContents</enum>
+     </property>
+     <property name="alternatingRowColors">
+      <bool>true</bool>
      </property>
      <attribute name="horizontalHeaderStretchLastSection">
       <bool>true</bool>
@@ -59,6 +67,34 @@
       </property>
      </column>
     </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="override_layout">
+     <item>
+      <widget class="QLabel" name="override_label">
+       <property name="text">
+        <string>Override</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="override_combo"/>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="override_edit">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="override_button">
+       <property name="text">
+        <string>Add Override</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>

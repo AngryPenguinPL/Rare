@@ -64,13 +64,13 @@ class IndicatorLineEdit(QWidget):
         completer: QCompleter = None,
         edit_func: Callable[[str], Tuple[bool, str, str]] = None,
         save_func: Callable[[str], None] = None,
-        horiz_policy: QSizePolicy = QSizePolicy.Expanding,
+        horiz_policy: QSizePolicy.Policy = QSizePolicy.Expanding,
         parent=None,
     ):
         super(IndicatorLineEdit, self).__init__(parent=parent)
         self.setObjectName(type(self).__name__)
         layout = QHBoxLayout(self)
-        layout.setObjectName(f"{self.objectName()}Layout")
+        layout.setObjectName(f"{type(self).__name__}Layout")
         layout.setContentsMargins(0, 0, 0, 0)
         # Add line_edit
         self.line_edit = QLineEdit(self)
@@ -107,7 +107,7 @@ class IndicatorLineEdit(QWidget):
             self.line_edit.textChanged.connect(self.__save)
 
         # lk: this can be placed here to trigger __edit
-        # lk: it going to save the input again if it is valid which
+        # lk: it's going to save the input again if it is valid which
         # lk: is ok to do given the checks don't misbehave (they shouldn't)
         # lk: however it is going to edit any "understood" bad input to good input
         # lk: and we might not want that (but the validity check reports on the edited string)
@@ -197,7 +197,7 @@ class PathEdit(IndicatorLineEdit):
         placeholder: str = "",
         edit_func: Callable[[str], Tuple[bool, str, str]] = None,
         save_func: Callable[[str], None] = None,
-        horiz_policy: QSizePolicy = QSizePolicy.Expanding,
+        horiz_policy: QSizePolicy.Policy = QSizePolicy.Expanding,
         parent=None,
     ):
         try:
@@ -256,8 +256,7 @@ class PathEdit(IndicatorLineEdit):
 
     def __wrap_edit_function(self, edit_function: Callable[[str], Tuple[bool, str, str]]):
         if edit_function:
-            return lambda text: edit_function(os.path.expanduser(text)
-                                              if text.startswith("~") else text)
+            return lambda text: edit_function(os.path.expanduser(text) if text.startswith("~") else text)
         else:
             return edit_function
 
@@ -301,25 +300,24 @@ class SideTabContainer(QWidget):
         self.title = QLabel(self)
         self.setTitle(title)
 
-        self.scroll = QScrollArea(self)
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setSizeAdjustPolicy(QScrollArea.AdjustToContents)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scroll.setFrameStyle(QScrollArea.NoFrame)
+        self.scrollarea = QScrollArea(self)
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setSizeAdjustPolicy(QScrollArea.AdjustToContents)
+        self.scrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scrollarea.setFrameStyle(QScrollArea.NoFrame)
         if widget.layout():
             widget.layout().setAlignment(Qt.AlignTop)
             widget.layout().setContentsMargins(0, 0, 9, 0)
         widget.title = self.title
         widget.title.setTitle = self.setTitle
-        self.scroll.setMinimumWidth(
-            widget.sizeHint().width()
-            + self.scroll.verticalScrollBar().sizeHint().width()
+        self.scrollarea.setMinimumWidth(
+            widget.sizeHint().width() + self.scrollarea.verticalScrollBar().sizeHint().width()
         )
-        self.scroll.setWidget(widget)
+        self.scrollarea.setWidget(widget)
 
         layout = QVBoxLayout()
         layout.addWidget(self.title)
-        layout.addWidget(self.scroll)
+        layout.addWidget(self.scrollarea)
         self.setLayout(layout)
 
     def setTitle(self, text: str) -> None:
@@ -375,9 +373,7 @@ class SelectViewWidget(QWidget):
         self.icon_button = QPushButton()
         self.list_button = QPushButton()
         if icon_view:
-            self.icon_button.setIcon(
-                qta_icon("mdi.view-grid-outline", "ei.th-large", color="orange")
-            )
+            self.icon_button.setIcon(qta_icon("mdi.view-grid-outline", "ei.th-large", color="orange"))
             self.list_button.setIcon(qta_icon("fa5s.list", "ei.th-list"))
         else:
             self.icon_button.setIcon(qta_icon("mdi.view-grid-outline", "ei.th-large"))
@@ -397,9 +393,7 @@ class SelectViewWidget(QWidget):
         return self.icon_view
 
     def icon(self):
-        self.icon_button.setIcon(
-            qta_icon("mdi.view-grid-outline", "ei.th-large", color="orange")
-        )
+        self.icon_button.setIcon(qta_icon("mdi.view-grid-outline", "ei.th-large", color="orange"))
         self.list_button.setIcon(qta_icon("fa5s.list", "ei.th-list"))
         self.icon_view = False
         self.toggled.emit()
@@ -479,9 +473,7 @@ class ButtonLineEdit(QLineEdit):
         frameWidth = self.style().pixelMetric(QStyle.PM_DefaultFrameWidth)
         buttonSize = self.button.sizeHint()
 
-        self.setStyleSheet(
-            "QLineEdit {padding-right: %dpx; }" % (buttonSize.width() + frameWidth + 1)
-        )
+        self.setStyleSheet("QLineEdit {padding-right: %dpx; }" % (buttonSize.width() + frameWidth + 1))
         self.setMinimumSize(
             max(self.minimumSizeHint().width(), buttonSize.width() + frameWidth * 2 + 2),
             max(

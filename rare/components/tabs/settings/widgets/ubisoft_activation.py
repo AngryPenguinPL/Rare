@@ -4,8 +4,8 @@ from logging import getLogger
 
 from PyQt5.QtCore import QObject, pyqtSignal, QRunnable, QThreadPool, QSize
 from PyQt5.QtWidgets import QWidget, QLabel, QHBoxLayout, QSizePolicy, QPushButton
-
 from legendary.models.game import Game
+
 from rare.shared import LegendaryCoreSingleton, ArgumentsSingleton
 from rare.utils.misc import icon
 

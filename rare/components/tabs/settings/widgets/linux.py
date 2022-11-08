@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import QFileDialog, QWidget
 from rare.components.tabs.settings.widgets.dxvk import DxvkSettings
 from rare.components.tabs.settings.widgets.mangohud import MangoHudSettings
 from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton
-
 from rare.ui.components.tabs.settings.linux import Ui_LinuxSettings
 from rare.utils.extra_widgets import PathEdit
 

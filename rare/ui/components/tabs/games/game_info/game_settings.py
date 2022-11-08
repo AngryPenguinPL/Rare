@@ -108,7 +108,7 @@ class Ui_GameSettings(object):
         self.offline.setItemText(2, _translate("GameSettings", "No"))
         self.launch_params_label.setText(_translate("GameSettings", "Launch parameters"))
         self.launch_params.setPlaceholderText(_translate("GameSettings", "parameters"))
-        self.override_exe_label.setText(_translate("GameSettings", "Override Exe"))
+        self.override_exe_label.setText(_translate("GameSettings", "Override exe"))
         self.override_exe_edit.setPlaceholderText(_translate("GameSettings", "Relative path to launch executable"))
         self.cloud_group.setTitle(_translate("GameSettings", "Cloud Saves"))
         self.cloud_sync_label.setText(_translate("GameSettings", "Sync with cloud"))

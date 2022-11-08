@@ -38,8 +38,8 @@ class RareApp(QApplication):
         self.setProperty("rareDefaultQtStyle", self.style().objectName())
 
         if (
-                self.settings.value("color_scheme", None) is None
-                and self.settings.value("style_sheet", None) is None
+            self.settings.value("color_scheme", None) is None
+            and self.settings.value("style_sheet", None) is None
         ):
             self.settings.setValue("color_scheme", "")
             self.settings.setValue("style_sheet", "RareStyle")

@@ -7,9 +7,10 @@ from PyQt5.QtCore import QRunnable, QObject, pyqtSignal, QThreadPool
 from PyQt5.QtWidgets import QGroupBox, QMessageBox
 
 from legendary.utils import eos
+
+from rare.models.install import InstallOptionsModel
 from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton
 from rare.ui.components.tabs.settings.widgets.eos_widget import Ui_EosWidget
-from rare.models.install import InstallOptionsModel
 
 logger = getLogger("EOS")
 
@@ -210,7 +211,7 @@ class EosWidget(QGroupBox, Ui_EosWidget):
         options = InstallOptionsModel(app_name="", base_path=base_path,
                                       platform="Windows", overlay=True)
 
-        self.signals.install_game.emit(options)
+        self.signals.game.install.emit(options)
 
     def uninstall_overlay(self):
         if not self.core.is_overlay_installed():

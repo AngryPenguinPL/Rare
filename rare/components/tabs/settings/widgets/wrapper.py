@@ -53,7 +53,7 @@ class WrapperWidget(QFrame):
 
         # lk: set object names for the stylesheet
         self.setObjectName(type(self).__name__)
-        self.delete_button.setObjectName(f"{self.objectName()}Button")
+        self.delete_button.setObjectName(f"{type(self).__name__}Button")
 
     def delete(self):
         self.delete_wrapper.emit(self.text)
@@ -94,8 +94,8 @@ class WrapperSettings(QWidget, Ui_WrapperSettings):
 
         # lk: set object names for the stylesheet
         self.setObjectName(type(self).__name__)
-        self.no_wrapper_label.setObjectName(f"{self.objectName()}Label")
-        self.wrapper_scroll.setObjectName(f"{self.objectName()}Scroll")
+        self.no_wrapper_label.setObjectName(f"{type(self).__name__}Label")
+        self.wrapper_scroll.setObjectName(f"{type(self).__name__}Scroll")
         self.wrapper_scroll.horizontalScrollBar().setObjectName(
             f"{self.wrapper_scroll.objectName()}Bar")
         self.wrapper_scroll.verticalScrollBar().setObjectName(

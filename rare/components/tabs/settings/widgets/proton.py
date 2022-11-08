@@ -6,11 +6,11 @@ from typing import Tuple
 from PyQt5.QtWidgets import QGroupBox, QFileDialog
 
 from rare.components.tabs.settings import LinuxSettings
-from .wrapper import WrapperSettings
+from rare.shared import LegendaryCoreSingleton
 from rare.ui.components.tabs.settings.proton import Ui_ProtonSettings
 from rare.utils import config_helper
 from rare.utils.extra_widgets import PathEdit
-from rare.shared import LegendaryCoreSingleton
+from .wrapper import WrapperSettings
 
 logger = getLogger("Proton")
 

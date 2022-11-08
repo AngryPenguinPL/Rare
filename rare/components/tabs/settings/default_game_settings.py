@@ -32,7 +32,7 @@ class DefaultGameSettings(QWidget, Ui_GameSettings):
         self.wrapper_settings = WrapperSettings()
 
         self.launch_settings_group.layout().addRow(
-            QLabel("Wrapper"), self.wrapper_settings
+            QLabel("Wrappers"), self.wrapper_settings
         )
 
         if platform.system() != "Windows":

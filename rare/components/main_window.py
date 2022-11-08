@@ -43,8 +43,9 @@ class MainWindow(QMainWindow):
                 logger.warning("Discord RPC module not found")
 
         self.timer = QTimer()
+        self.timer.setInterval(1000)
         self.timer.timeout.connect(self.timer_finished)
-        self.timer.start(1000)
+        self.timer.start()
 
     def show_window_centered(self):
         self.show()
@@ -96,7 +97,7 @@ class MainWindow(QMainWindow):
             elif action.startswith("start"):
                 self.show()
             os.remove(file_path)
-        self.timer.start(1000)
+        self.timer.start()
 
     def closeEvent(self, e: QCloseEvent):
         if self.settings.value("save_size", False, bool):

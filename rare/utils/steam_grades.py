@@ -5,8 +5,8 @@ from datetime import date
 
 import requests
 from PyQt5.QtCore import pyqtSignal, QRunnable, QObject, QCoreApplication
-
 from legendary.core import LegendaryCore
+
 from rare.shared import LegendaryCoreSingleton, ArgumentsSingleton
 from rare.utils.paths import data_dir, cache_dir
 

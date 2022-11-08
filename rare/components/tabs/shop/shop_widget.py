@@ -10,8 +10,8 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QHBoxLayout,
 )
-
 from legendary.core import LegendaryCore
+
 from rare.ui.components.tabs.store.store import Ui_ShopWidget
 from rare.utils.extra_widgets import WaitingSpinner, ButtonLineEdit
 from rare.widgets.flow_layout import FlowLayout
