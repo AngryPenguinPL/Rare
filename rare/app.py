@@ -22,7 +22,8 @@ from rare.components.main_window import MainWindow
 from rare.components.tray_icon import TrayIcon
 from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton, ArgumentsSingleton
 from rare.shared.image_manager import ImageManagerSingleton
-from rare.utils import legendary_utils, config_helper
+from rare.shared.rare_core import RareCoreSingleton
+from rare.utils import config_helper
 from rare.utils.paths import cache_dir, tmp_dir
 from rare.widgets.rare_app import RareApp
 
@@ -99,6 +100,7 @@ class App(RareApp):
 
         self.signals = GlobalSignalsSingleton(init=True)
         self.image_manager = ImageManagerSingleton(init=True)
+        self.rare_core = RareCoreSingleton(init=True)
 
         self.signals.exit_app.connect(self.exit_app)
         self.signals.send_notification.connect(
@@ -125,8 +127,9 @@ class App(RareApp):
         dt_now = datetime.utcnow()
         td = abs(dt_exp - dt_now)
         self.timer = QTimer()
+        self.timer.setInterval(int(td.total_seconds() - 60) * 1000)
         self.timer.timeout.connect(self.re_login)
-        self.timer.start(int(td.total_seconds() - 60) * 1000)
+        self.timer.start()
 
     def re_login(self):
         logger.info("Session expires shortly. Renew session")
@@ -138,7 +141,9 @@ class App(RareApp):
         dt_exp = datetime.fromisoformat(self.core.lgd.userdata['expires_at'][:-1])
         dt_now = datetime.utcnow()
         td = abs(dt_exp - dt_now)
-        self.timer.start(int(td.total_seconds() - 60) * 1000)
+        self.timer.stop()
+        self.timer.setInterval(int(td.total_seconds() - 60) * 1000)
+        self.timer.start()
 
     def show_mainwindow(self):
         if self.window_launched:
@@ -147,25 +152,8 @@ class App(RareApp):
             self.mainwindow.show_window_centered()
 
     def start_app(self):
-        for igame in self.core.get_installed_list():
-            if not os.path.exists(igame.install_path):
-                # lk; since install_path is lost anyway, set keep_files to True
-                # lk: to avoid spamming the log with "file not found" errors
-                legendary_utils.uninstall_game(self.core, igame.app_name, keep_files=True)
-                logger.info(f"Uninstalled {igame.title}, because no game files exist")
-                continue
-            # lk: games that don't have an override and can't find their executable due to case sensitivity
-            # lk: will still erroneously require verification. This might need to be removed completely
-            # lk: or be decoupled from the verification requirement
-            if override_exe := self.core.lgd.config.get(igame.app_name, "override_exe", fallback=""):
-                igame_executable = override_exe
-            else:
-                igame_executable = igame.executable
-            if not os.path.exists(os.path.join(igame.install_path, igame_executable.replace("\\", "/").lstrip("/"))):
-                igame.needs_verification = True
-                self.core.lgd.set_installed_game(igame.app_name, igame)
-                logger.info(f"{igame.title} needs verification")
-
+        import time
+        start_t = time.time()
         self.mainwindow = MainWindow()
         self.tray_icon: TrayIcon = TrayIcon(self)
         self.tray_icon.exit_action.triggered.connect(self.exit_app)
@@ -179,6 +167,9 @@ class App(RareApp):
         if not self.args.silent:
             self.mainwindow.show_window_centered()
             self.window_launched = True
+            print(f"Main window created in: {time.time() - start_t}")
+            self.rare_core.load_pixmaps()
+            print(f"Main window created in: {time.time() - start_t}")
 
         if self.args.subparser == "launch":
             if self.args.app_name in [
@@ -213,7 +204,7 @@ class App(RareApp):
     def exit_app(self, exit_code=0):
         # FIXME: Fix this with the downlaod tab redesign
         if self.mainwindow is not None:
-            if not self.args.offline and self.mainwindow.tab_widget.downloadTab.is_download_active:
+            if not self.args.offline and self.mainwindow.tab_widget.downloads_tab.is_download_active:
                 question = QMessageBox.question(
                     self.mainwindow,
                     self.tr("Close"),
@@ -227,8 +218,8 @@ class App(RareApp):
                     return
                 else:
                     # clear queue
-                    self.mainwindow.tab_widget.downloadTab.queue_widget.update_queue([])
-                    self.mainwindow.tab_widget.downloadTab.stop_download()
+                    self.mainwindow.tab_widget.downloads_tab.queue_widget.update_queue([])
+                    self.mainwindow.tab_widget.downloads_tab.stop_download()
         # FIXME: End of FIXME
         self.mainwindow.timer.stop()
         self.mainwindow.hide()

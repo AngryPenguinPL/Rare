@@ -12,9 +12,9 @@ from rare.components.dialogs.uninstall_dialog import UninstallDialog
 from rare.components.tabs.games import CloudSaveUtils
 from rare.game_launch_helper import message_models
 from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton, ArgumentsSingleton
+from rare.shared.rare_core import RareCoreSingleton
 from rare.utils import legendary_utils
 from rare.utils import misc
-from rare.utils.meta import RareGameMeta
 
 logger = getLogger("GameUtils")
 
@@ -28,8 +28,9 @@ class GameProcess(QObject):
         super(GameProcess, self).__init__()
         self.app_name = app_name
         self.on_startup = on_startup
-        self.game = LegendaryCoreSingleton().get_game(app_name)
-        self.game_meta = RareGameMeta()
+        self.rare_core = RareCoreSingleton()
+        self.game = self.rare_core.get_game(app_name).game
+        self.socket = QLocalSocket()
         self.socket = QLocalSocket()
         self.socket.connected.connect(self._socket_connected)
         try:
@@ -96,9 +97,9 @@ class GameProcess(QObject):
             if model.new_state == message_models.StateChangedModel.States.started:
                 logger.info("Launched Game")
                 self.game_launched.emit(self.app_name)
-                meta_data = self.game_meta.get_game(self.app_name)
+                meta_data = self.rare_core.get_game(self.app_name).metadata
                 meta_data.last_played = datetime.datetime.now()
-                self.game_meta.set_game(self.app_name, meta_data)
+                self.rare_core.save_metadata()
 
     def _socket_connected(self):
         self.timer.stop()
@@ -127,7 +128,7 @@ class GameUtils(QObject):
     cloud_save_finished = pyqtSignal(str)
     launch_queue = dict()
     game_launched = pyqtSignal(str)
-    update_list = pyqtSignal(str)
+    # update_list = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super(GameUtils, self).__init__(parent=parent)
@@ -137,41 +138,12 @@ class GameUtils(QObject):
 
         self.cloud_save_utils = CloudSaveUtils()
         self.cloud_save_utils.sync_finished.connect(self.sync_finished)
-        self.game_meta = RareGameMeta()
 
         for igame in self.core.get_installed_list():
             game_process = GameProcess(igame.app_name, True)
             game_process.game_finished.connect(self.game_finished)
             game_process.game_launched.connect(self.game_launched.emit)
             self.running_games[igame.app_name] = game_process
-
-    def uninstall_game(self, app_name) -> bool:
-        # returns if uninstalled
-        game = self.core.get_game(app_name)
-        igame = self.core.get_installed_game(app_name)
-        if not os.path.exists(igame.install_path):
-            if QMessageBox.Yes == QMessageBox.question(
-                    None,
-                    self.tr("Uninstall - {}").format(igame.title),
-                    self.tr(
-                        "Game files of {} do not exist. Remove it from installed games?"
-                    ).format(igame.title),
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.Yes,
-            ):
-                self.core.lgd.remove_installed_game(app_name)
-                return True
-            else:
-                return False
-
-        proceed, keep_files, keep_config = UninstallDialog(game).get_options()
-        if not proceed:
-            return False
-        success, message = legendary_utils.uninstall_game(self.core, game.app_name, keep_files, keep_config)
-        if not success:
-            QMessageBox.warning(None, self.tr("Uninstall - {}").format(igame.title), message, QMessageBox.Close)
-        self.signals.game_uninstalled.emit(app_name)
-        return True
 
     def prepare_launch(
             self, app_name, offline: bool = False, skip_update_check: bool = False

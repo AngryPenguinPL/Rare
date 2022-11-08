@@ -9,6 +9,8 @@ from rare.components.tabs.settings import SettingsTab
 from rare.components.tabs.settings.debug import DebugSettings
 from rare.components.tabs.shop import Shop
 from rare.components.tabs.tab_utils import MainTabBar, TabButtonWidget
+from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton, ArgumentsSingleton
+from rare.shared.rare_core import RareCoreSingleton
 from rare.utils.misc import icon
 
 
@@ -18,33 +20,40 @@ class TabWidget(QTabWidget):
         self.core = LegendaryCoreSingleton()
         self.signals = GlobalSignalsSingleton()
         self.args = ArgumentsSingleton()
+        self.rare_core = RareCoreSingleton()
         disabled_tab = 3 if not self.args.offline else 1
         self.setTabBar(MainTabBar(disabled_tab))
         # lk: Figure out why this adds a white line at the top
         # lk: despite setting qproperty-drawBase to 0 in the stylesheet
         # self.setDocumentMode(True)
         # Generate Tabs
+        import time
+        start_t = time.time()
         self.games_tab = GamesTab()
         self.addTab(self.games_tab, self.tr("Games"))
+        print(f"Games Tab: {time.time() - start_t}")
 
         if not self.args.offline:
             # updates = self.games_tab.default_widget.game_list.updates
-            self.downloadTab = DownloadsTab(self.games_tab.updates)
+            start_t = time.time()
+            updates = [u for u in self.rare_core.updates]
+            self.downloads_tab = DownloadsTab(self)
             self.addTab(
-                self.downloadTab,
-                "Downloads"
-                + (
-                    " (" + str(len(self.games_tab.updates)) + ")"
-                    if len(self.games_tab.updates) != 0
-                    else ""
-                ),
+                self.downloads_tab,
+                self.tr("Downloads {}").format(f"({len(updates) if updates else 0})"),
             )
+            print(f"Downloads Tab: {time.time() - start_t}")
+
+            start_t = time.time()
             self.store = Shop(self.core)
             self.addTab(self.store, self.tr("Store (Beta)"))
+            print(f"Store Tab: {time.time() - start_t}")
 
+        start_t = time.time()
         self.settings = SettingsTab(self)
         if self.args.debug:
             self.settings.addTab(DebugSettings(), "Debug")
+        print(f"Settings Tab: {time.time() - start_t}")
 
         # Space Tab
         self.addTab(QWidget(), "")
@@ -89,8 +98,8 @@ class TabWidget(QTabWidget):
     def update_dl_tab_text(self):
         num_downloads = len(
             set(
-                [i.options.app_name for i in self.downloadTab.dl_queue]
-                + [i for i in self.downloadTab.update_widgets.keys()]
+                [i.options.app_name for i in self.downloads_tab.dl_queue]
+                + [i for i in self.downloads_tab.update_widgets.keys()]
             )
         )
 

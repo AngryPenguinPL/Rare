@@ -6,10 +6,11 @@ from typing import Union, List, Dict
 
 from PyQt5.QtCore import QObject, pyqtSignal, QRunnable, QThreadPool, Qt, QSettings
 from PyQt5.QtWidgets import QDialog, QMessageBox, QSizePolicy, QLayout, QApplication
-
 from legendary.core import LegendaryCore
 from legendary.models.game import SaveGameStatus, InstalledGame, SaveGameFile
-from rare.shared import LegendaryCoreSingleton, ArgumentsSingleton, ApiResultsSingleton
+
+from rare.shared import LegendaryCoreSingleton, ArgumentsSingleton
+from rare.shared.rare_core import RareCoreSingleton
 from rare.ui.components.dialogs.sync_save_dialog import Ui_SyncSaveDialog
 from rare.utils.misc import icon
 
@@ -40,7 +41,7 @@ class SaveWorker(QRunnable):
         self.signals = SaveSignals()
         self.setAutoDelete(True)
         self.core = LegendaryCoreSingleton()
-        self.api_results = ApiResultsSingleton()
+        self.rare_core = RareCoreSingleton()
         self.model = model
 
     def run(self) -> None:
@@ -63,7 +64,7 @@ class SaveWorker(QRunnable):
             if isinstance(self.model, UploadModel):
                 logger.info("Updating cloud saves...")
                 result = self.core.get_save_games(self.model.app_name)
-                self.api_results.saves = result
+                self.rare_core.saves = result
         except Exception as e:
             self.signals.finished.emit(str(e), self.model.app_name)
             logger.error(str(e))
@@ -129,8 +130,8 @@ class CloudSaveUtils(QObject):
         super(CloudSaveUtils, self).__init__()
         self.core = LegendaryCoreSingleton()
         self.args = ArgumentsSingleton()
-        self.api_results = ApiResultsSingleton()
-        saves = self.api_results.saves
+        self.rare_core = RareCoreSingleton()
+        saves = self.rare_core.saves
         if not self.args.offline:
             self.latest_saves = self.get_latest_saves(saves)
         else:
@@ -309,7 +310,7 @@ class CloudSaveUtils(QObject):
         if not error_message:
 
             self.sync_finished.emit(app_name)
-            self.latest_saves = self.get_latest_saves(self.api_results.saves)
+            self.latest_saves = self.get_latest_saves(self.rare_core.saves)
         else:
             QMessageBox.warning(
                 None,

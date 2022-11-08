@@ -17,13 +17,14 @@ from PyQt5.QtCore import (
     QStandardPaths,
     QFile,
     QDir,
+    QEvent,
 )
 from PyQt5.QtGui import QPalette, QColor, QImage
 from PyQt5.QtWidgets import qApp, QStyleFactory
 from legendary.models.game import Game
 from requests.exceptions import HTTPError
 
-from .models import PathSpec
+from rare.models.pathspec import PathSpec
 
 # Windows
 
@@ -31,7 +32,7 @@ if platform.system() == "Windows":
     # noinspection PyUnresolvedReferences
     from win32com.client import Dispatch  # pylint: disable=E0401
 
-from rare.shared import LegendaryCoreSingleton, ApiResultsSingleton
+from rare.shared import LegendaryCoreSingleton
 from rare.utils.paths import image_dir, resources_path
 
 # Mac not supported
@@ -148,9 +149,7 @@ def get_translations():
 
 def get_latest_version():
     try:
-        resp = requests.get(
-            "https://api.github.com/repos/Dummerle/Rare/releases/latest"
-        )
+        resp = requests.get("https://api.github.com/repos/Dummerle/Rare/releases/latest")
         tag = resp.json()["tag_name"]
         return tag
     except requests.exceptions.ConnectionError:
@@ -190,8 +189,9 @@ def get_rare_executable() -> List[str]:
     return executable
 
 
-def create_desktop_link(app_name=None, core: LegendaryCore = None, type_of_link="desktop",
-                        for_rare: bool = False) -> bool:
+def create_desktop_link(
+    app_name=None, core: LegendaryCore = None, type_of_link="desktop", for_rare: bool = False
+) -> bool:
     if not for_rare:
         igame = core.get_installed_game(app_name)
 
@@ -243,8 +243,7 @@ def create_desktop_link(app_name=None, core: LegendaryCore = None, type_of_link=
             target_folder = QStandardPaths.writableLocation(QStandardPaths.DesktopLocation)
         elif type_of_link == "start_menu":
             target_folder = os.path.join(
-                QStandardPaths.writableLocation(QStandardPaths.ApplicationsLocation),
-                ".."
+                QStandardPaths.writableLocation(QStandardPaths.ApplicationsLocation), ".."
             )
         else:
             logger.warning("No valid type of link")
@@ -331,22 +330,16 @@ class WineResolver(QRunnable):
             "wine_executable",
             fallback=core.lgd.config.get("default", "wine_executable", fallback="wine"),
         )
-        self.winepath_binary = os.path.join(
-            os.path.dirname(self.wine_binary), "winepath"
-        )
+        self.winepath_binary = os.path.join(os.path.dirname(self.wine_binary), "winepath")
         self.path = PathSpec(core, app_name).cook(path)
 
     @pyqtSlot()
     def run(self):
-        if "WINEPREFIX" not in self.wine_env or not os.path.exists(
-                self.wine_env["WINEPREFIX"]
-        ):
+        if "WINEPREFIX" not in self.wine_env or not os.path.exists(self.wine_env["WINEPREFIX"]):
             # pylint: disable=E1136
             self.signals.result_ready[str].emit(str())
             return
-        if not os.path.exists(self.wine_binary) or not os.path.exists(
-                self.winepath_binary
-        ):
+        if not os.path.exists(self.wine_binary) or not os.path.exists(self.winepath_binary):
             # pylint: disable=E1136
             self.signals.result_ready[str].emit(str())
             return
@@ -402,11 +395,7 @@ class CloudWorker(QRunnable):
 
 def get_raw_save_path(game: Game):
     if game.supports_cloud_saves:
-        return (
-            game.metadata.get("customAttributes", {})
-                .get("CloudSaveFolder", {})
-                .get("value")
-        )
+        return game.metadata.get("customAttributes", {}).get("CloudSaveFolder", {}).get("value")
 
 
 def get_default_platform(app_name):
@@ -431,3 +420,26 @@ def icon(icn_str: str, fallback: str = None, **kwargs):
     if kwargs.get("color"):
         kwargs["color"] = "red"
     return qtawesome.icon("ei.error", **kwargs)
+
+
+class EventTypes:
+    """Stores a string name for each event type.
+
+    With PySide2 str() on the event type gives a nice string name,
+    but with PyQt5 it does not. So this method works with both systems.
+    """
+
+    def __init__(self):
+        """Create mapping for all known event types."""
+        self.string_name = {}
+        for name in vars(QEvent):
+            attribute = getattr(QEvent, name)
+            if type(attribute) == QEvent.Type:
+                self.string_name[attribute] = name
+
+    def as_string(self, event: QEvent.Type) -> str:
+        """Return the string name for this event."""
+        try:
+            return self.string_name[event]
+        except KeyError:
+            return f"UnknownEvent:{event}"

@@ -3,11 +3,12 @@ from PyQt5.QtWidgets import QFrame, QWidget, QMessageBox
 from legendary.models.game import Game
 
 from rare.components.tabs.games.game_utils import GameUtils
+from rare.models.game import RareGame
+from rare.models.install import InstallOptionsModel
 from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton
-from rare.shared.image_manager import ImageManagerSingleton, ImageSize
+from rare.shared.image_manager import ImageSize
 from rare.ui.components.tabs.games.game_info.game_dlc import Ui_GameDlc
 from rare.ui.components.tabs.games.game_info.game_dlc_widget import Ui_GameDlcWidget
-from rare.models.install import InstallOptionsModel
 from rare.widgets.image_widget import ImageWidget
 
 
@@ -74,24 +75,19 @@ class GameDlc(QWidget, Ui_GameDlc):
             QMessageBox.warning(
                 self,
                 "Error",
-                self.tr("Base Game is not installed. Please install {} first").format(
-                    self.game.app_title
-                ),
+                self.tr("Base Game is not installed. Please install {} first").format(self.game.app_title),
             )
             return
 
-        self.signals.install_game.emit(
-            InstallOptionsModel(app_name=app_name, update=True)
-        )
+        self.signals.game.install.emit(InstallOptionsModel(app_name=app_name, update=True))
 
 
 class GameDlcWidget(QFrame, Ui_GameDlcWidget):
     install = pyqtSignal(str)  # Appname
     uninstall = pyqtSignal(str)
 
-    def __init__(self, dlc: Game, installed: bool, parent=None):
+    def __init__(self, dlc: RareGame, installed: bool, parent=None):
         super(GameDlcWidget, self).__init__(parent=parent)
-        self.image_manager = ImageManagerSingleton()
         self.setupUi(self)
         self.dlc = dlc
 
@@ -100,10 +96,10 @@ class GameDlcWidget(QFrame, Ui_GameDlcWidget):
         self.dlc_layout.insertWidget(0, self.image)
 
         self.dlc_name.setText(dlc.app_title)
-        self.version.setText(dlc.app_version())
+        self.version.setText(dlc.version)
         self.app_name.setText(dlc.app_name)
 
-        self.image.setPixmap(self.image_manager.get_pixmap(dlc.app_name))
+        self.image.setPixmap(self.dlc.pixmap)
 
         if installed:
             self.action_button.setProperty("uninstall", 1)

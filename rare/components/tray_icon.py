@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
 
 from rare.shared import GlobalSignalsSingleton
 from rare.shared import LegendaryCoreSingleton
-from rare.utils.meta import GameMeta
+from rare.shared.rare_core import RareCoreSingleton
 
 logger = getLogger("TrayIcon")
 
@@ -30,19 +30,25 @@ class TrayIcon(QSystemTrayIcon):
         self.text_action.setEnabled(False)
         self.menu.addAction(self.text_action)
 
-        if len(installed := self.core.get_installed_list()) < 5:
-            last_played = [GameMeta(i.app_name) for i in sorted(installed, key=lambda x: x.title)]
-        elif games := sorted(
-                parent.mainwindow.tab_widget.games_tab.game_utils.game_meta.get_games(),
-                key=lambda x: x.last_played, reverse=True):
-            last_played: List[GameMeta] = games[0:5]
-        else:
-            last_played = [GameMeta(i.app_name) for i in sorted(installed, key=lambda x: x.title)][0:5]
+        self.rare_core = RareCoreSingleton()
+
+        last_played = [game for game in self.rare_core.games if (game.metadata and game.is_installed)]
+        last_played.sort(key=lambda g: g.metadata.last_played, reverse=True)
+        last_played = last_played[0:5]
+
+        # if len(installed := self.core.get_installed_list()) < 5:
+        #     last_played = [GameMeta(i.app_name) for i in sorted(installed, key=lambda x: x.title)]
+        # elif games := sorted(
+        #         parent.mainwindow.tab_widget.games_tab.game_utils.game_meta.get_games(),
+        #         key=lambda x: x.last_played, reverse=True):
+        #     last_played: List[GameMeta] = games[0:5]
+        # else:
+        #     last_played = [GameMeta(i.app_name) for i in sorted(installed, key=lambda x: x.title)][0:5]
 
         self.game_actions: List[QAction] = []
 
         for game in last_played:
-            a = QAction(self.core.get_game(game.app_name).app_title)
+            a = QAction(game.game.app_title)
             a.setProperty("app_name", game.app_name)
             self.game_actions.append(a)
             a.triggered.connect(
@@ -58,7 +64,7 @@ class TrayIcon(QSystemTrayIcon):
         self.setContextMenu(self.menu)
 
         self.signals = GlobalSignalsSingleton()
-        self.signals.game_uninstalled.connect(self.remove_button)
+        self.signals.game.uninstalled.connect(self.remove_button)
 
     def remove_button(self, app_name: str):
         if action := next((i for i in self.game_actions if i.property("app_name") == app_name), None):

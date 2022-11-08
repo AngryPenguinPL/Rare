@@ -1,90 +1,69 @@
 import os
 import platform
 from logging import getLogger
+from typing import Optional
 
-from PyQt5.QtCore import pyqtSignal, QProcess, QSettings, QStandardPaths, Qt, QByteArray
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QFrame, QMessageBox, QAction
+from PyQt5.QtCore import pyqtSignal, QProcess, QSettings, QStandardPaths, Qt, pyqtSlot
+from PyQt5.QtGui import QMouseEvent
+from PyQt5.QtWidgets import QMessageBox, QAction
+from legendary.models.game import Game, InstalledGame
 
 from rare.components.tabs.games.game_utils import GameUtils
+from rare.models.game import RareGame
 from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton, ArgumentsSingleton
-from rare.shared.image_manager import ImageManagerSingleton, ImageSize
+from rare.shared.image_manager import ImageManagerSingleton
 from rare.utils.misc import create_desktop_link
 from rare.widgets.image_widget import ImageWidget
+from .library_widget import LibraryWidget
 
-logger = getLogger("Game")
+
+logger = getLogger("BaseGameWidget")
 
 
-class BaseInstalledWidget(QFrame):
+class GameWidget(LibraryWidget):
     launch_signal = pyqtSignal(str, QProcess, list)
-    show_info = pyqtSignal(str)
+    show_info = pyqtSignal(Game, bool)
     finish_signal = pyqtSignal(str, int)
-    proc: QProcess()
+    proc: QProcess
 
-    def __init__(self, app_name, pixmap: QPixmap, game_utils: GameUtils):
-        super(BaseInstalledWidget, self).__init__()
+    def __init__(self, rgame: RareGame, game_utils: GameUtils, parent=None):
+        super(GameWidget, self).__init__(parent=parent)
         self.core = LegendaryCoreSingleton()
         self.signals = GlobalSignalsSingleton()
         self.args = ArgumentsSingleton()
         self.image_manager = ImageManagerSingleton()
+
         self.game_utils = game_utils
 
+        self.rgame = rgame
+        self.rgame.signals.widget.update.connect(
+            lambda: self.setPixmap(self.rgame.pixmap)
+        )
+        self.rgame.signals.progress.start.connect(
+            lambda: self.showProgress(
+                self.image_manager.get_pixmap(self.rgame.app_name, True),
+                self.image_manager.get_pixmap(self.rgame.app_name, False)
+            )
+        )
+        self.rgame.signals.progress.update.connect(
+            lambda p: self.updateProgress(p)
+        )
+        self.rgame.signals.progress.finish.connect(
+            lambda e: self.hideProgress(e)
+        )
+
+        self.game: Game = rgame.game
+        self.igame: Optional[InstalledGame] = rgame.igame  # None if origin
         self.syncing_cloud_saves = False
-
-        self.texts = {
-            "needs_verification": self.tr("Please verify game before playing"),
-            "hover": {
-                "update_available": self.tr("Start game without version check"),
-                "launch": self.tr("Launch Game"),
-                "launch_origin": self.tr("Launch/Link"),
-                "running": self.tr("Game running"),
-                "launch_offline": self.tr("Launch offline")
-            },
-            "default": {
-                "running": self.tr("Game running"),
-                "syncing": self.tr("Syncing cloud saves"),
-                "update_available": self.tr("Update available"),
-                "no_meta": self.tr("Game is only offline available")
-            },
-        }
-
-        self.game = self.core.get_game(app_name)
-        self.igame = self.core.get_installed_game(app_name)  # None if origin
 
         if self.game.app_title == "Unreal Engine":
             self.game.app_title = f"{self.game.app_title} {self.game.app_name.split('_')[-1]}"
 
-        self.is_only_offline = False
-
-        try:
-            self.core.get_asset(app_name, platform=self.igame.platform).build_version
-        except ValueError:
-            logger.warning(f"Game {self.game.app_title} has no metadata. Set offline true")
-            self.is_only_offline = True
-        except AttributeError:
-            pass
-
-        self.image = ImageWidget(self)
-        self.image.setFixedSize(ImageSize.Display)
-        self.image.setPixmap(pixmap)
         self.game_running = False
-        self.offline = self.args.offline
-        self.update_available = False
-        if self.igame and self.core.lgd.assets:
-            try:
-                remote_version = self.core.get_asset(
-                    self.game.app_name, platform=self.igame.platform, update=False
-                ).build_version
-            except ValueError:
-                logger.error(f"Asset error for {self.game.app_title}")
-                self.update_available = False
-            else:
-                if remote_version != self.igame.version:
-                    self.update_available = True
 
-        self.data = QByteArray()
         self.settings = QSettings()
 
+        self.installing = False
         self.setContextMenuPolicy(Qt.ActionsContextMenu)
         launch = QAction(self.tr("Launch"), self)
         launch.triggered.connect(self.launch)
@@ -134,15 +113,84 @@ class BaseInstalledWidget(QFrame):
             uninstall = QAction(self.tr("Uninstall"), self)
             self.addAction(uninstall)
             uninstall.triggered.connect(
-                lambda: self.signals.update_gamelist.emit([self.game.app_name])
+                lambda: self.signals.game.uninstalled.emit(self.game.app_name)
                 if self.game_utils.uninstall_game(self.game.app_name)
                 else None
             )
 
-    def reload_image(self):
-        self.image_manager.download_image_blocking(self.game, force=True)
-        pm = self.image_manager.get_pixmap(self.game.app_name, color=True)
-        self.image.setPixmap(pm)
+        self.texts = {
+            "static": {
+                "needs_verification": self.tr("Please verify game before playing"),
+            },
+            "hover": {
+                "update_available": self.tr("Start without version check"),
+                "launch": self.tr("Launch Game"),
+                "launch_origin": self.tr("Launch/Link"),
+                "running": self.tr("Game running"),
+                "launch_offline": self.tr("Launch offline")
+            },
+            "default": {
+                "running": self.tr("Game running"),
+                "syncing": self.tr("Syncing cloud saves"),
+                "update_available": self.tr("Update available"),
+                "no_meta": self.tr("Game is only offline available")
+            },
+        }
+
+    @property
+    def enterEventText(self) -> str:
+        if self.rgame.is_installed:
+            if self.game_running:
+                return self.texts["hover"]["running"]
+            elif self.igame and self.rgame.needs_verification:
+                return self.texts["static"]["needs_verification"]
+            elif self.rgame.is_foreign:
+                return self.texts["hover"]["launch_offline"]
+            elif self.rgame.has_update:
+                return self.texts["hover"]["update_available"]
+            else:
+                return self.tr("Game Info")
+                # return self.texts["hover"]["launch" if self.igame else "launch_origin"]
+        else:
+            if not self.installing:
+                return self.tr("Game Info")
+            else:
+                return self.tr("Installation running")
+
+    @property
+    def leaveEventText(self) -> str:
+        if self.rgame.is_installed:
+            if self.game_running:
+                return self.texts["default"]["running"]
+            elif self.syncing_cloud_saves:
+                return self.texts["default"]["syncing"]
+            elif self.rgame.is_foreign:
+                return self.texts["default"]["no_meta"]
+            elif self.rgame.has_update:
+                return self.texts["default"]["update_available"]
+            elif self.igame and self.rgame.needs_verification:
+                return self.texts["static"]["needs_verification"]
+            else:
+                return ""
+        else:
+            if self.installing:
+                return "Installation..."
+            else:
+                return ""
+
+    def mousePressEvent(self, e: QMouseEvent) -> None:
+        # left button
+        if e.button() == 1:
+            self.show_info.emit(self.game, self.rgame.is_installed)
+        # right
+        elif e.button() == 2:
+            pass  # self.showMenu(e)
+
+    def reload_image(self) -> None:
+        self.rgame.refresh_pixmap()
+
+    def install(self):
+        self.show_info.emit(self.game, self.rgame.is_installed)
 
     def create_desktop_link(self, type_of_link):
         if type_of_link == "desktop":
@@ -188,8 +236,8 @@ class BaseInstalledWidget(QFrame):
     def launch(self, offline=False, skip_version_check=False):
         if self.game_running:
             return
-        offline = offline or self.is_only_offline
-        if self.is_only_offline and not self.igame.can_run_offline:
+        offline = offline or self.rgame.is_foreign
+        if self.rgame.is_foreign and not self.igame.can_run_offline:
             QMessageBox.warning(self, "Warning",
                                 self.tr("This game is probably not in your library and it cannot be launched offline"))
             return

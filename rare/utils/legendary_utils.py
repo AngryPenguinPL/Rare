@@ -1,5 +1,6 @@
 import os
 import platform
+import sys
 from logging import getLogger
 
 from PyQt5.QtCore import pyqtSignal, QObject, QRunnable, QStandardPaths
@@ -73,8 +74,10 @@ def update_manifest(app_name: str, core: LegendaryCore):
     core.lgd.save_manifest(game.app_name, new_manifest_data, version=new_manifest.meta.build_version)
 
 
-class VerifyWorker(QRunnable):
+class VerificationWorker(QRunnable):
     class Signals(QObject):
+        # str: app_name
+        started = pyqtSignal(str)
         status = pyqtSignal(str, int, int, float, float)
         result = pyqtSignal(str, bool, int, int)
         error = pyqtSignal(str, str)
@@ -83,8 +86,9 @@ class VerifyWorker(QRunnable):
     total: int = 1  # set default to 1 to avoid DivisionByZero before it is initialized
 
     def __init__(self, app_name):
-        super(VerifyWorker, self).__init__()
-        self.signals = VerifyWorker.Signals()
+        sys.excepthook = sys.__excepthook__
+        super(VerificationWorker, self).__init__()
+        self.signals = VerificationWorker.Signals()
         self.setAutoDelete(True)
         self.core = LegendaryCoreSingleton()
         self.args = ArgumentsSingleton()
@@ -94,6 +98,7 @@ class VerifyWorker(QRunnable):
         self.signals.status.emit(self.app_name, num, total, percentage, speed)
 
     def run(self):
+        self.signals.started.emit(self.app_name)
         cli = LegendaryCLI(self.core)
         status = LgndrIndirectStatus()
         args = LgndrVerifyGameArgs(

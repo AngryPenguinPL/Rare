@@ -3,10 +3,11 @@ import platform
 import shutil
 from logging import getLogger
 from pathlib import Path
+from typing import Tuple, Dict, Optional
 
 from PyQt5.QtCore import (
+    QRunnable,
     Qt,
-    pyqtSignal,
     QThreadPool,
     pyqtSlot,
 )
@@ -21,15 +22,17 @@ from PyQt5.QtWidgets import (
 )
 from legendary.models.game import Game, InstalledGame
 
+from rare.models.game import RareGame
 from rare.models.install import InstallOptionsModel
 from rare.shared import (
     LegendaryCoreSingleton,
     GlobalSignalsSingleton,
     ArgumentsSingleton,
 )
-from rare.shared.image_manager import ImageManagerSingleton, ImageSize
+from rare.shared.image_manager import ImageSize
+from rare.shared.rare_core import RareCoreSingleton
 from rare.ui.components.tabs.games.game_info.game_info import Ui_GameInfo
-from rare.utils.legendary_utils import VerifyWorker
+from rare.utils.legendary_utils import VerificationWorker
 from rare.utils.misc import get_size
 from rare.utils.steam_grades import SteamWorker
 from rare.widgets.image_widget import ImageWidget
@@ -39,11 +42,10 @@ logger = getLogger("GameInfo")
 
 
 class GameInfo(QWidget, Ui_GameInfo):
-    igame: InstalledGame
-    game: Game = None
-    verify_threads = dict()
-    verification_finished = pyqtSignal(InstalledGame)
-    uninstalled = pyqtSignal(str)
+    rgame: Optional[RareGame] = None
+    igame: Optional[InstalledGame] = None
+    game: Optional[Game] = None
+    verify_threads: Dict[str, QRunnable] = dict()
 
     def __init__(self, parent, game_utils):
         super(GameInfo, self).__init__(parent=parent)
@@ -51,7 +53,7 @@ class GameInfo(QWidget, Ui_GameInfo):
         self.core = LegendaryCoreSingleton()
         self.signals = GlobalSignalsSingleton()
         self.args = ArgumentsSingleton()
-        self.image_manager = ImageManagerSingleton()
+        self.rare_core = RareCoreSingleton()
         self.game_utils = game_utils
 
         self.image = ImageWidget(self)
@@ -101,14 +103,12 @@ class GameInfo(QWidget, Ui_GameInfo):
         self.widget_container.setLayout(box_layout)
         index = self.move_stack.addWidget(self.widget_container)
         self.move_stack.setCurrentIndex(index)
+        self.move_game_pop_up.browse_done.connect(self.show_menu_after_browse)
         self.move_game_pop_up.move_clicked.connect(self.move_button.menu().close)
         self.move_game_pop_up.move_clicked.connect(self.move_game)
-        self.move_game_pop_up.browse_done.connect(self.show_menu_after_browse)
 
     def uninstall(self):
-        if self.game_utils.uninstall_game(self.game.app_name):
-            self.game_utils.update_list.emit(self.game.app_name)
-            self.uninstalled.emit(self.game.app_name)
+        self.rgame.uninstall(self.game_utils)
 
     @pyqtSlot()
     def repair(self):
@@ -158,7 +158,7 @@ class GameInfo(QWidget, Ui_GameInfo):
 
     def verify_game(self, igame: InstalledGame):
         self.verify_widget.setCurrentIndex(1)
-        verify_worker = VerifyWorker(igame.app_name)
+        verify_worker = VerificationWorker(igame.app_name)
         verify_worker.signals.status.connect(self.verify_status)
         verify_worker.signals.result.connect(self.verify_result)
         verify_worker.signals.error.connect(self.verify_error)
@@ -311,11 +311,25 @@ class GameInfo(QWidget, Ui_GameInfo):
         self.move_button.showMenu()
 
     def update_game(self, app_name: str):
-        self.game = self.core.get_game(app_name)
-        self.igame = self.core.get_installed_game(self.game.app_name)
+        if self.rgame is not None:
+            if (verify_worker := self.rgame.verify_worker()) is not None:
+                # FIXME: lk: improve checks on this, maybe hide it
+                try:
+                    verify_worker.signals.status.disconnect(self.verify_status)
+                except TypeError as e:
+                    logger.warning(f"{self.rgame.app_title} verify worker: {e}")
+        self.rgame = self.rare_core.get_game(app_name)
+        if (verify_worker := self.rgame.verify_worker()) is not None:
+            self.verify_widget.setCurrentIndex(1)
+            verify_worker.signals.status.connect(self.verify_status)
+        else:
+            self.verify_widget.setCurrentIndex(0)
+        self.verify_progress.setValue(self.rgame.progress)
+        self.game = self.rgame.game
+        self.igame = self.rgame.igame
         self.title.setTitle(self.game.app_title)
 
-        self.image.setPixmap(self.image_manager.get_pixmap(self.game.app_name, color=True))
+        self.image.setPixmap(self.rgame.pixmap)
 
         self.app_name.setText(self.game.app_name)
         if self.igame:

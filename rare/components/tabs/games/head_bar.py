@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QSettings, pyqtSignal
+from PyQt5.QtCore import QSettings, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (
     QLabel,
     QPushButton,
@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
 )
 from qtawesome import IconWidget
 
-from rare.shared import ApiResultsSingleton
+from rare.shared.rare_core import RareCoreSingleton
 from rare.utils.extra_widgets import SelectViewWidget, ButtonLineEdit
 from rare.utils.misc import icon
 
@@ -18,7 +18,7 @@ class GameListHeadBar(QWidget):
 
     def __init__(self, parent=None):
         super(GameListHeadBar, self).__init__(parent=parent)
-        self.api_results = ApiResultsSingleton()
+        self.rare_core = RareCoreSingleton()
         self.settings = QSettings()
 
         self.filter = QComboBox()
@@ -35,15 +35,15 @@ class GameListHeadBar(QWidget):
             "installed",
             "offline",
         ]
-        if self.api_results.bit32_games:
+        if self.rare_core.bit32_games:
             self.filter.addItem(self.tr("32 Bit Games"))
             self.available_filters.append("32bit")
 
-        if self.api_results.mac_games:
+        if self.rare_core.mac_games:
             self.filter.addItem(self.tr("Mac games"))
             self.available_filters.append("mac")
 
-        if self.api_results.no_asset_games:
+        if self.rare_core.no_asset_games:
             self.filter.addItem(self.tr("Exclude Origin"))
             self.available_filters.append("installable")
 
@@ -70,6 +70,7 @@ class GameListHeadBar(QWidget):
         self.search_bar.setObjectName("search_bar")
         self.search_bar.setFrame(False)
         self.search_bar.setMinimumWidth(200)
+        self.search_bar.setPlaceholderText(self.tr("Search Game"))
 
         checked = QSettings().value("icon_view", True, bool)
 
@@ -93,6 +94,7 @@ class GameListHeadBar(QWidget):
 
         self.refresh_list = QPushButton()
         self.refresh_list.setIcon(icon("fa.refresh"))  # Reload icon
+        self.refresh_list.clicked.connect(self.rare_core.fetch)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 5, 0, 5)
@@ -117,6 +119,11 @@ class GameListHeadBar(QWidget):
         self.installed_label.setText(str(inst))
         self.available_label.setText(str(avail))
 
-    def filter_changed(self, i):
+    @pyqtSlot()
+    def refresh_clicked(self):
+        self.rare_core.fetch()
+
+    @pyqtSlot(int)
+    def filter_changed(self, i: int):
         self.filterChanged.emit(self.available_filters[i])
         self.settings.setValue("filter", i)

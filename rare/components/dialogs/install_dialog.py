@@ -16,7 +16,8 @@ from rare.lgndr.api_monkeys import LgndrIndirectStatus
 from rare.lgndr.cli import LegendaryCLI
 from rare.lgndr.core import LegendaryCore
 from rare.models.install import InstallDownloadModel, InstallQueueItemModel
-from rare.shared import LegendaryCoreSingleton, ApiResultsSingleton, ArgumentsSingleton
+from rare.shared import LegendaryCoreSingleton, ArgumentsSingleton
+from rare.shared.rare_core import RareCoreSingleton
 from rare.ui.components.dialogs.install_dialog import Ui_InstallDialog
 from rare.utils import config_helper
 from rare.utils.extra_widgets import PathEdit
@@ -35,7 +36,7 @@ class InstallDialog(QDialog):
         self.ui.setupUi(self)
 
         self.core = LegendaryCoreSingleton()
-        self.api_results = ApiResultsSingleton()
+        self.rare_core = RareCoreSingleton()
         self.dl_item = dl_item
         self.app_name = self.dl_item.options.app_name
         self.game = (
@@ -90,9 +91,9 @@ class InstallDialog(QDialog):
         self.error_box()
 
         platforms = ["Windows"]
-        if dl_item.options.app_name in self.api_results.bit32_games:
+        if dl_item.options.app_name in self.rare_core.bit32_games:
             platforms.append("Win32")
-        if dl_item.options.app_name in self.api_results.mac_games:
+        if dl_item.options.app_name in self.rare_core.mac_games:
             platforms.append("Mac")
         self.ui.platform_combo_box.addItems(platforms)
         self.ui.platform_combo_box.currentIndexChanged.connect(lambda: self.option_changed(None))

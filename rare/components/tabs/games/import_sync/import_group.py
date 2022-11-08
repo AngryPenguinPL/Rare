@@ -13,7 +13,8 @@ from PyQt5.QtWidgets import QFileDialog, QGroupBox, QCompleter, QTreeView, QHead
 from rare.lgndr.api_arguments import LgndrImportGameArgs
 from rare.lgndr.api_monkeys import LgndrIndirectStatus
 from rare.lgndr.cli import LegendaryCLI
-from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton, ApiResultsSingleton
+from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton
+from rare.shared.rare_core import RareCoreSingleton
 from rare.ui.components.tabs.games.import_sync.import_group import Ui_ImportGroup
 from rare.utils.extra_widgets import IndicatorLineEdit, PathEdit
 from rare.widgets.elide_label import ElideLabel
@@ -62,7 +63,7 @@ class ImportWorker(QRunnable):
         super(ImportWorker, self).__init__()
         self.signals = self.Signals()
         self.core = LegendaryCoreSingleton()
-
+        self.rare_core = RareCoreSingleton()
         self.path = Path(path)
         self.app_name = app_name
         self.import_folder = import_folder
@@ -159,14 +160,14 @@ class ImportGroup(QGroupBox):
         self.ui.setupUi(self)
         self.core = LegendaryCoreSingleton()
         self.signals = GlobalSignalsSingleton()
-        self.api_results = ApiResultsSingleton()
+        self.rare_core = RareCoreSingleton()
 
-        self.app_name_list = [game.app_name for game in self.api_results.game_list]
+        self.app_name_list = [game.app_name for game in self.rare_core.game_list]
         self.install_dir_list = [
             game.metadata.get("customAttributes", {})
             .get("FolderName", {})
             .get("value", game.app_name)
-            for game in self.api_results.game_list
+            for game in self.rare_core.game_list
             if not game.is_dlc
         ]
 
@@ -182,7 +183,7 @@ class ImportGroup(QGroupBox):
         self.app_name_edit = IndicatorLineEdit(
             placeholder=self.tr("Use in case the app name was not found automatically"),
             completer=AppNameCompleter(
-                app_names=[(i.app_name, i.app_title) for i in self.api_results.game_list]
+                app_names=[(i.app_name, i.app_title) for i in self.rare_core.game_list]
             ),
             edit_func=self.app_name_edit_cb,
             parent=self,
@@ -270,13 +271,13 @@ class ImportGroup(QGroupBox):
         logger.info(f"Import finished: {result}")
         self.info_label.setText("")
 
-        self.signals.update_gamelist.emit([r.app_name for r in result if r.result == ImportResult.SUCCESS])
+        self.signals.game.installed.emit([r.app_name for r in result if r.result == ImportResult.SUCCESS])
 
         for failed in (f for f in result if f.result == ImportResult.FAILED):
-            igame = self.core.get_installed_game(failed.app_name)
-            if igame and igame.version != self.core.get_asset(igame.app_name, igame.platform, False).build_version:
+            rgame = self.rare_core.get_game(failed.app_name)
+            if rgame.version != rgame.remote_version:
                 # update available
-                self.signals.add_download.emit(igame.app_name)
+                self.signals.download.enqueue_game.emit(rgame.app_name)
                 self.signals.update_download_tab_text.emit()
 
         if len(result) == 1:

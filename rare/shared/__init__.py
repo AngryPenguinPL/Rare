@@ -10,13 +10,11 @@ from typing import Optional
 
 from rare.lgndr.core import LegendaryCore
 
-from rare.models.apiresults import ApiResults
 from rare.models.signals import GlobalSignals
 
 _legendary_core_singleton: Optional[LegendaryCore] = None
 _global_signals_singleton: Optional[GlobalSignals] = None
 _arguments_singleton: Optional[Namespace] = None
-_api_results_singleton: Optional[ApiResults] = None
 
 
 def LegendaryCoreSingleton(init: bool = False) -> LegendaryCore:
@@ -44,13 +42,3 @@ def ArgumentsSingleton(args: Namespace = None) -> Optional[Namespace]:
     if _arguments_singleton is None:
         _arguments_singleton = args
     return _arguments_singleton
-
-
-def ApiResultsSingleton(res: ApiResults = None) -> Optional[ApiResults]:
-    global _api_results_singleton
-    if _api_results_singleton is None and res is None:
-        raise RuntimeError("Uninitialized use of ApiResultsSingleton")
-    if _api_results_singleton is None:
-        _api_results_singleton = res
-    return _api_results_singleton
-

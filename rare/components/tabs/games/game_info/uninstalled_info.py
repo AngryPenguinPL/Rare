@@ -5,17 +5,13 @@ from PyQt5.QtGui import QKeyEvent
 from PyQt5.QtWidgets import QWidget, QTreeView
 from legendary.models.game import Game
 
-from rare.shared import (
-    LegendaryCoreSingleton,
-    GlobalSignalsSingleton,
-    ArgumentsSingleton,
-    ApiResultsSingleton,
-)
+from rare.models.game import RareGame
+from rare.shared import LegendaryCoreSingleton, GlobalSignalsSingleton, ArgumentsSingleton
 from rare.shared.image_manager import ImageManagerSingleton, ImageSize
+from rare.shared.rare_core import RareCoreSingleton
 from rare.ui.components.tabs.games.game_info.game_info import Ui_GameInfo
 from rare.utils.extra_widgets import SideTabWidget
 from rare.utils.json_formatter import QJsonModel
-from rare.models.install import InstallOptionsModel
 from rare.utils.steam_grades import SteamWorker
 from rare.widgets.image_widget import ImageWidget
 
@@ -69,6 +65,7 @@ class GameMetadataView(QTreeView):
 
 
 class UninstalledInfo(QWidget, Ui_GameInfo):
+    rgame: RareGame
     game: Game
 
     def __init__(self, parent=None):
@@ -76,7 +73,7 @@ class UninstalledInfo(QWidget, Ui_GameInfo):
         self.setupUi(self)
         self.core = LegendaryCoreSingleton()
         self.signals = GlobalSignalsSingleton()
-        self.api_results = ApiResultsSingleton()
+        self.rare_core = RareCoreSingleton()
         self.image_manager = ImageManagerSingleton()
 
         self.image = ImageWidget(self)
@@ -103,31 +100,31 @@ class UninstalledInfo(QWidget, Ui_GameInfo):
         self.lbl_platform.setText(self.tr("Platforms"))
 
     def install_game(self):
-        self.signals.install_game.emit(InstallOptionsModel(app_name=self.game.app_name))
+        self.rgame.install()
 
     def update_game(self, game: Game):
+        self.rgame = self.rare_core.get_game(game.app_name)
         self.game = game
         self.title.setTitle(self.game.app_title)
         available_platforms = ["Windows"]
-        if self.game.app_name in self.api_results.bit32_games:
+        if self.rgame.is_win32:
             available_platforms.append("32 Bit")
-        if self.game.app_name in self.api_results.mac_games:
+        if self.rgame.is_mac:
             available_platforms.append("macOS")
         self.platform.setText(", ".join(available_platforms))
 
-        self.image.setPixmap(self.image_manager.get_pixmap(self.game.app_name, color=True))
+        self.image.setPixmap(self.rgame.pixmap)
 
         self.app_name.setText(self.game.app_name)
-        self.version.setText(self.game.app_version("Windows"))
-        self.dev.setText(self.game.metadata["developer"])
+        self.version.setText(self.rgame.version)
+        self.dev.setText(self.rgame.developer)
         self.install_size.setText("N/A")
         self.install_path.setText("N/A")
 
-        is_ue = self.core.get_asset(game.app_name).namespace == "ue"
-        self.grade.setVisible(not is_ue)
-        self.lbl_grade.setVisible(not is_ue)
+        self.grade.setVisible(not self.rgame.is_unreal)
+        self.lbl_grade.setVisible(not self.rgame.is_unreal)
 
-        if platform.system() != "Windows" and not is_ue:
+        if platform.system() != "Windows" and not self.rgame.is_unreal:
             self.grade.setText(self.tr("Loading"))
-            self.steam_worker.set_app_name(game.app_name)
+            self.steam_worker.set_app_name(self.rgame.app_name)
             QThreadPool.globalInstance().start(self.steam_worker)

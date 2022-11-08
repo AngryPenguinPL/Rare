@@ -13,7 +13,7 @@ from rare.ui.components.tabs.games.import_sync.egl_sync_list_group import (
     Ui_EGLSyncListGroup,
 )
 from rare.utils.extra_widgets import PathEdit
-from rare.utils.models import PathSpec
+from rare.models.pathspec import PathSpec
 from rare.utils.misc import WineResolver
 
 logger = getLogger("EGLSync")
@@ -282,7 +282,7 @@ class EGLSyncListGroup(QGroupBox, Ui_EGLSyncListGroup):
                     imported.append(item.app_name)
                     self.list.takeItem(self.list.row(item))
         if not self.export and imported:
-            self.signals.update_gamelist.emit(imported)
+            self.signals.game.installed.emit(imported)
         self.populate(True)
         if errors:
             self.action_errors.emit(errors)

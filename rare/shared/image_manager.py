@@ -37,7 +37,7 @@ logger = getLogger("ImageManager")
 
 class ImageSize:
     class Preset:
-        __img_factor = 67
+        __img_factor = 60
         __size: QSize
         __divisor: float = 1.0
         __pixel_ratio: float = 1.0
